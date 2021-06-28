@@ -1,0 +1,16 @@
+<html>
+<head>
+</head>
+<body>
+<h1>DB Version: {{ db_version }} </h1>
+<h1> DB Host: {{ db_host }} </h1>
+{% if cache == 'hit'%}
+<h1 style="background-color:green; padding: 20px;"> Cache Hit</h1>
+<p> Cache will expries in: {{ db_ttl }} seconds</p>
+{% else %}
+<h1 style="background-color:red;padding: 20px;"> Cache Miss</h1>
+{% endif %}
+<hr>
+Response time: {{ g.request_time() }}
+</body>
+</html>

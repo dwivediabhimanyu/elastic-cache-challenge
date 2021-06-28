@@ -1,8 +1,9 @@
-# /usr/bin/python2.7
 import psycopg2
 from configparser import ConfigParser
 from flask import Flask, request, render_template, g, abort
 import time
+import redis
+import os
 
 def config(filename='config/database.ini', section='postgresql'):
     # create a parser
@@ -60,6 +61,10 @@ def connect():
         # return a conn
         return conn
 
+def connect_redis(host=os.environ['REDIS_HOST'], port=6379, db=0):
+    return redis.Redis(host, port, db , decode_responses=True)
+
+
 app = Flask(__name__) 
 
 @app.before_request
@@ -69,15 +74,25 @@ def before_request():
 
 @app.route("/")     
 def index():
-    sql = 'SELECT slow_version();'
-    db_result = fetch(sql)
+    sql = 'SELECT slow_version()'
+    cache = 'hit'
+
+    r = connect_redis()
+    if(r.get('postgres_details')):
+        db_result = r.get('postgres_details')
+        db_ttl = str(r.ttl('postgres_details')) 
+    else:
+        db_ttl = "NA"
+        db_result = fetch(sql)
+        cache = 'miss'
+        r.setex('postgres_details',10,''.join(db_result))
 
     if(db_result):
         db_version = ''.join(db_result)    
     else:
         abort(500)
     params = config()
-    return render_template('index.html', db_version = db_version, db_host = params['host'])
+    return render_template('index.html', db_version = db_version, db_host = params['host'], db_ttl= db_ttl , cache = cache)
 
 if __name__ == "__main__":        # on running python app.py
     app.run()                     # run the flask app
